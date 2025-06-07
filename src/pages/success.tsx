@@ -2,6 +2,7 @@ import { stripe } from "@/lib/stripe";
 import { ImageContainer, SuccessContainer } from "@/styles/pages/success";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 
 interface SuccessProps {
   customerName: string;
@@ -31,6 +32,15 @@ export default function Success({ customerName, product }: SuccessProps) {
 }
 
 export const getServerSideProps = async ({ query }) => {
+  if (!query.sessionId) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
   const sessionId = String(query.session_id);
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ["line_items", "line_items.data.price.product"],
