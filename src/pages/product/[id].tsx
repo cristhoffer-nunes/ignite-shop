@@ -1,23 +1,59 @@
-import { useRouter } from "next/router";
 import { ImageContainer, ProductContainer, ProductDetails } from "../product";
+import { GetStaticProps } from "next";
+import { stripe } from "@/lib/stripe";
+import Stripe from "stripe";
+import Image from "next/image";
 
-export default function Products() {
-  const { query } = useRouter();
+interface ProductProps {
+  product: {
+    id: string;
+    name: string;
+    imageUrl: string;
+    price: string;
+    description: string;
+  };
+}
 
+export default function Products({ product }: ProductProps) {
   return (
     <ProductContainer>
-      <ImageContainer></ImageContainer>
+      <ImageContainer>
+        <Image src={product.imageUrl} alt="" width={520} height={480} />
+      </ImageContainer>
       <ProductDetails>
-        <h1>Camiseta 1</h1>
-        <span>R$ 79,00</span>
-        <p>
-          Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dolor
-          molestiae illum voluptas explicabo est suscipit ut quibusdam vero
-          molestias provident officia enim, blanditiis modi? Amet aperiam
-          quaerat odio eius perspiciatis.
-        </p>
+        <h1>{product.name}</h1>
+        <span>{product.price}</span>
+        <p>{product.description}</p>
         <button>Comprar agora</button>
       </ProductDetails>
     </ProductContainer>
   );
 }
+
+export const getStaticProps: GetStaticProps<any, { id: string }> = async ({
+  params,
+}) => {
+  const productId = params.id;
+
+  const response = await stripe.products.retrieve(productId, {
+    expand: ["default_price"],
+  });
+
+  const price = response.default_price as Stripe.Price;
+
+  return {
+    props: {
+      product: {
+        id: response.id,
+        name: response.name,
+        imageUrl: response.images[0],
+        price: new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }).format((price.unit_amount || 0) / 100),
+        description: response.description,
+      },
+    },
+    revalidate: 60 * 60 * 1,
+  };
+};
